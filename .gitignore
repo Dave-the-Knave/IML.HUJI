@@ -1,0 +1,11 @@
+
+code\ examples/*.png
+code\ examples/*.gif
+*.png
+*.gif
+figures/*.png
+.idea
+__pycache__
+lab/.ipynb_checkpoints/
+code\ examples/.ipynb_checkpoints/
+
