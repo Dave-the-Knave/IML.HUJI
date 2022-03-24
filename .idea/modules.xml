@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../IML.HUJI/.idea/IML.HUJI.iml" filepath="$PROJECT_DIR$/../IML.HUJI/.idea/IML.HUJI.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/iml.iml" filepath="$PROJECT_DIR$/.idea/iml.iml" />
+    </modules>
+  </component>
+</project>
