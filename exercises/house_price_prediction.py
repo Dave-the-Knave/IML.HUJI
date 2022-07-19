@@ -1,6 +1,5 @@
 from IMLearn.utils import split_train_test
 from IMLearn.learners.regressors import LinearRegression
-
 from typing import NoReturn
 import numpy as np
 import pandas as pd
@@ -23,7 +22,23 @@ def load_data(filename: str):
     Design matrix and response vector (prices) - either as a single
     DataFrame or a Tuple[DataFrame, Series]
     """
-    raise NotImplementedError()
+    df = pd.read_csv(filename)
+    df = df[df['price'] > 0]
+    training_labels = df.price.copy(deep=True)
+    df.drop(['price', 'id', 'lat', 'long'], axis=1, inplace=True)
+    df = pd.concat([df, pd.get_dummies(df['zipcode'], prefix='zipcode_', dummy_na=False)],
+                   axis=1).drop(['zipcode'], axis=1)
+    df['date'] = pd.to_numeric(df['date'].str.split(pat='T').str[0])
+    sale_year = df['date'].apply(lambda x: np.floor(x/10000))
+    ren_bld = pd.concat([sale_year - df['yr_built'], sale_year - df['yr_renovated']], join='outer', axis=1)
+    df['yr_renovated'] = ren_bld.min(axis=1)
+    df['roomsize'] = df['sqft_living'] / (df['bedrooms'] + 1)
+    df['bathroom_proportional'] = df['bedrooms'] / (df['bathrooms'] + 1)
+    for k, v in df.iteritems():
+        df[df[k].isnull() | df[k] == np.NaN] = 0
+        minimum, maximum = v.min(), v.max()
+        df[k] = (v - minimum)/(maximum - minimum)
+    return df, training_labels
 
 
 def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") -> NoReturn:
@@ -43,19 +58,28 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
     output_path: str (default ".")
         Path to folder in which plots are saved
     """
-    raise NotImplementedError()
+    for k, v in X.iteritems():
+        pearson = np.cov(v, y)[0, 1]/(np.std(v)*np.std(y))
+        go.Figure() \
+            .add_traces([go.Scatter(x=v, y=y, mode='markers',
+                                marker=dict(color="Blue"), showlegend=False)]) \
+            .update_layout(title_text=f"Correlation between {k} and Price: {pearson}", height=500, width=500) \
+            .update_xaxes(title_text=k) \
+            .update_yaxes(title_text="Price") \
+            .write_image(f"{output_path}/{k}_price_cor.jpg")
+    return
 
 
 if __name__ == '__main__':
     np.random.seed(0)
     # Question 1 - Load and preprocessing of housing prices dataset
-    raise NotImplementedError()
+    features, labels = load_data("../datasets/house_prices.csv")
 
     # Question 2 - Feature evaluation with respect to response
-    raise NotImplementedError()
+    #feature_evaluation(features, labels, "../exercises/graphs")
 
     # Question 3 - Split samples into training- and testing sets.
-    raise NotImplementedError()
+    X_train, y_train, X_test, y_test = split_train_test(features, labels, 0.75)
 
     # Question 4 - Fit model over increasing percentages of the overall training data
     # For every percentage p in 10%, 11%, ..., 100%, repeat the following 10 times:
@@ -64,4 +88,28 @@ if __name__ == '__main__':
     #   3) Test fitted model over test set
     #   4) Store average and variance of loss over test set
     # Then plot average loss as function of training size with error ribbon of size (mean-2*std, mean+2*std)
-    raise NotImplementedError()
+
+    X_train, y_train, X_test, y_test = X_train.to_numpy(na_value=0), y_train.to_numpy(na_value=0), X_test.to_numpy(na_value=0), y_test.to_numpy(na_value=0)
+    avg_loss, std_loss = np.ndarray([90]), np.ndarray([90])
+    p = [x for x in range(10, 100)]
+    for i in p:
+        loss = []
+        for j in range(1, 10):
+            sample = np.random.choice([x for x in range(1, X_train.shape[0])], size=int(i*X_train.shape[0]/100), replace=False)
+            sample_X = X_train[sample, :]
+            sample_y = y_train[sample]
+            model = LinearRegression(include_intercept=True)
+            model._fit(sample_X, sample_y)
+            loss.append(model._loss(y_test, model._predict(X_test)))
+        avg_loss[i-10] = np.mean(loss)
+        std_loss[i-10] = np.std(loss)
+    go.Figure() \
+        .add_traces([go.Scatter(x=p, y=avg_loss, mode='markers', marker=dict(color="Blue"), showlegend=False),
+            go.Scatter(x=p, y=avg_loss - 2 * std_loss, fill=None, mode="lines", line=dict(color="lightgrey"),
+                       showlegend=False),
+            go.Scatter(x=p, y=avg_loss + 2 * std_loss, fill='tonexty', mode="lines", line=dict(color="lightgrey"),
+                       showlegend=False)]) \
+        .update_layout(title_text=r"Relation btw Loss and Sample Size", height=500, width=500) \
+        .update_xaxes(title_text=r"Sample Size (%)") \
+        .update_yaxes(title_text=r"Mean Squared Error") \
+        .show()
