@@ -1,8 +1,8 @@
 from __future__ import annotations
 from typing import Callable, NoReturn
 import numpy as np
-
-from IMLearn.base import BaseModule, BaseLR
+from IMLearn.base import BaseModule
+from IMLearn.base.base_learning_rate import BaseLR
 from .learning_rate import FixedLR
 
 OUTPUT_VECTOR_TYPE = ["last", "best", "average"]
@@ -15,25 +15,20 @@ def default_callback(**kwargs) -> NoReturn:
 class GradientDescent:
     """
     Gradient Descent algorithm
-
     Attributes:
     -----------
     learning_rate_: BaseLR
         Learning rate strategy for retrieving the learning rate at each iteration t of the algorithm
-
     tol_: float
         The stopping criterion. Training stops when the Euclidean norm of w^(t)-w^(t-1) is less than
         specified tolerance
-
     max_iter_: int
         The maximum number of GD iterations to be performed before stopping training
-
     out_type_: str
         Type of returned solution:
             - `last`: returns the point reached at the last GD iteration
             - `best`: returns the point achieving the lowest objective
             - `average`: returns the average point over the GD iterations
-
     callback_: Callable[[...], None], default=default_callback
         A callable function to be called after each update of the model while fitting to given data.
         Callable function receives as input any argument relevant for the current GD iteration. Arguments
@@ -47,22 +42,17 @@ class GradientDescent:
                  callback: Callable[[GradientDescent, ...], None] = default_callback):
         """
         Instantiate a new instance of the GradientDescent class
-
         Parameters
         ----------
         learning_rate: BaseLR, default=FixedLR(1e-3)
             Learning rate strategy for retrieving the learning rate at each iteration t of the algorithm
-
         tol: float, default=1e-5
             The stopping criterion. Training stops when the Euclidean norm of w^(t)-w^(t-1) is less than
             specified tolerance
-
         max_iter: int, default=1000
             The maximum number of GD iterations to be performed before stopping training
-
         out_type: str, default="last"
             Type of returned solution. Supported types are specified in class attributes
-
         callback: Callable[[...], None], default=default_callback
             A callable function to be called after each update of the model while fitting to given data.
             Callable function receives as input any argument relevant for the current GD iteration. Arguments
@@ -79,7 +69,6 @@ class GradientDescent:
     def fit(self, f: BaseModule, X: np.ndarray, y: np.ndarray):
         """
         Optimize module using Gradient Descent iterations over given input samples and responses
-
         Parameters
         ----------
         f : BaseModule
@@ -88,19 +77,15 @@ class GradientDescent:
             Input data to optimize module over
         y : ndarray of shape (n_samples, )
             Responses of input data to optimize module over
-
         Returns
         -------
         solution: ndarray of shape (n_features)
             Obtained solution for module optimization, according to the specified self.out_type_
-
         Notes
         -----
         - Optimization is performed as long as self.max_iter_ has not been reached and that
         Euclidean norm of w^(t)-w^(t-1) is more than the specified self.tol_
-
         - At each iteration the learning rate is specified according to self.learning_rate_.lr_step
-
         - At the end of each iteration the self.callback_ function is called passing self and the
         following named arguments:
             - solver: GradientDescent
@@ -117,6 +102,38 @@ class GradientDescent:
                 Learning rate used at current iteration
             - delta: float
                 Euclidean norm of w^(t)-w^(t-1)
-
         """
-        raise NotImplementedError()
+        # prepare descent
+        best_loss = np.inf
+        params = [f.weights]
+        best_params = f.weights
+        flag = 0
+        iters = 0
+        # iterate
+        while iters < self.max_iter_ and flag == 0:
+            # update weights
+            last_param = f.weights
+            grad = f.compute_jacobian(X=X, y=y)
+            eta = self.learning_rate_.lr_step(t=iters)
+            f.weights = f.weights - eta * grad
+            # record and evaluate
+            loss = f.compute_output(X=X, y=y)
+            if self.out_type_ == "best":
+                if loss < best_loss:
+                    best_params = f.weights
+                    best_loss = loss
+            if self.out_type_ == "average":
+                params.append(f.weights)
+            # update stopping conditions
+            delta = np.linalg.norm(f.weights - last_param)
+            if delta < self.tol_:
+                flag = 1
+            iters += 1
+            # pass data to callback function
+            self.callback_(solver=self, weights=f.weights, val=loss)
+        # return optimized parameters
+        if self.out_type_ == "last":
+            best_params = f.weights
+        if self.out_type_ == "average":
+            best_params = sum(params) / len(params)
+        return best_params

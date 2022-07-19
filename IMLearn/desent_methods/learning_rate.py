@@ -1,6 +1,6 @@
 import numpy as np
-
-from IMLearn.base import BaseModule, BaseLR
+from IMLearn.base import BaseModule
+from IMLearn.base.base_learning_rate import BaseLR
 
 
 class FixedLR(BaseLR):
@@ -10,7 +10,6 @@ class FixedLR(BaseLR):
     def __init__(self, base_lr: float):
         """
         Instantiate a fixed learning-rate object
-
         Parameters:
         -----------
          base_lr: float
@@ -22,17 +21,15 @@ class FixedLR(BaseLR):
     def lr_step(self, **lr_kwargs) -> float:
         """
         Specify learning rate at call
-
         Returns:
         --------
         eta: float
             Fixed learning rate specified when initializing instance
-
         Note:
         -----
         No arguments are expected
         """
-        raise NotImplementedError()
+        return self.base_lr
 
 
 class ExponentialLR(FixedLR):
@@ -42,12 +39,10 @@ class ExponentialLR(FixedLR):
     def __init__(self, base_lr: float, decay_rate: float):
         """
         Instantiate an exponentially decaying learning-rate object, i.e. eta_t = eta*gamma^t
-
         Parameters:
         ----------
         base_lr: float
             Learning to be returned at t=0 (i.e eta)
-
         decay_rate: float
             Decay rate of learning-rate (i.e. gamma)
         """
@@ -57,15 +52,13 @@ class ExponentialLR(FixedLR):
     def lr_step(self, t: int, **lr_kwargs) -> float:
         """
         Specify learning rate at call `t`
-
         Parameters:
         -----------
         t: int
             Step time for which to calculate learning rate
-
         Returns:
         --------
         eta_t: float
             Exponential decay according to eta_t = eta*gamma^t
         """
-        raise NotImplementedError()
+        return self.base_lr * (self.decay_rate ** t)
